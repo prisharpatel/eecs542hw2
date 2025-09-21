@@ -113,6 +113,8 @@ def ask_agent(model, history):
     while count < max_retries:
         try:
             if model.startswith('gemini'):
+                if model == "gemini":
+                    model = "gemini-2.0-flash"
                 # Example: 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', etc.
                 client = genai.Client()  # reads GEMINI_API_KEY from env
                 system_instruction = None

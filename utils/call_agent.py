@@ -8,11 +8,10 @@ import warnings
 import traceback
 
 # new
-import google.generativeai as genai
-from google.generativeai import types
-from google.api_core import exceptions as google_exceptions
+from google import genai
+from google.genai import types
+from google.genai import errors as genai_errors
 import base64
-import os
 
 warnings.filterwarnings("ignore")
 
@@ -115,7 +114,7 @@ def ask_agent(model, history):
         try:
             if model.startswith('gemini'):
                 # Example: 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', etc.
-                genai.configure(api_key=os.getenv("GEMINI_API_KEY"))  # reads GEMINI_API_KEY from env
+                client = genai.Client()  # reads GEMINI_API_KEY from env
                 system_instruction = None
                 contents = []
                 for msg in history:
@@ -125,45 +124,29 @@ def ask_agent(model, history):
                         continue
                     # Gemini roles are "user" and "model"
                     g_role = "user" if msg["role"] == "user" else "model"
-                    contents.append({
-                            "role": g_role,
-                            "parts": blocks_to_parts_gemini(raw)
-                        })
+                    contents.append(types.Content(role=g_role, parts=blocks_to_parts_gemini(raw)))
 
-                    # contents.append(types.Content(role=g_role, parts=blocks_to_parts_gemini(raw)))
-
-                # cfg = types.GenerateContentConfig(
-                #     max_output_tokens=4096,
-                #     system_instruction=system_instruction if system_instruction else None,
-                # )
-                cfg = genai.GenerationConfig(
+                cfg = types.GenerateContentConfig(
                     max_output_tokens=4096,
+                    system_instruction=system_instruction if system_instruction else None,
                 )
 
-
-                gemini_model = genai.GenerativeModel(model, system_instruction=system_instruction)
-                resp = gemini_model.generate_content(
-                    contents=contents,
-                    generation_config=cfg,
+                resp = client.models.generate_content(
+                    model=model,          # pass through the requested Gemini model
+                    contents=contents,    # built from history
+                    config=cfg,
                 )
-                if hasattr(resp, "text") and resp.text:
-                    return resp.text
-                elif hasattr(resp, "candidates") and resp.candidates:
-                    return "\n".join(
-                        p.text for p in resp.candidates[0].content.parts if hasattr(p, "text")
-                    )
-                else:
-                    return str(resp)
+                return resp.text
 
             else:
                 print(f"Unrecognized model name: {model}")
                 return None
 
         except (openai.error.RateLimitError, 
-            openai.error.ServiceUnavailableError, 
-            openai.error.APIError,
-            anthropic.RateLimitError,
-            google_exceptions.GoogleAPIError) as e:
+                openai.error.ServiceUnavailableError, 
+                openai.error.APIError,
+                anthropic.RateLimitError,
+                genai_errors.APIError) as e:
             count += 1
             print(f'API error: {str(e)}')
             # Optional: only retry for transient Gemini errors

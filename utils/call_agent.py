@@ -125,19 +125,35 @@ def ask_agent(model, history):
                         continue
                     # Gemini roles are "user" and "model"
                     g_role = "user" if msg["role"] == "user" else "model"
-                    contents.append(types.Content(role=g_role, parts=blocks_to_parts_gemini(raw)))
+                    contents.append({
+                            "role": g_role,
+                            "parts": blocks_to_parts_gemini(raw)
+                        })
 
-                cfg = types.GenerateContentConfig(
+                    # contents.append(types.Content(role=g_role, parts=blocks_to_parts_gemini(raw)))
+
+                # cfg = types.GenerateContentConfig(
+                #     max_output_tokens=4096,
+                #     system_instruction=system_instruction if system_instruction else None,
+                # )
+                cfg = genai.GenerationConfig(
                     max_output_tokens=4096,
-                    system_instruction=system_instruction if system_instruction else None,
                 )
 
-                gemini_model = genai.GenerativeModel(model)
+
+                gemini_model = genai.GenerativeModel(model, system_instruction=system_instruction)
                 resp = gemini_model.generate_content(
                     contents=contents,
                     generation_config=cfg,
                 )
-                return resp.text if hasattr(resp, "text") else str(resp)
+                if hasattr(resp, "text") and resp.text:
+                    return resp.text
+                elif hasattr(resp, "candidates") and resp.candidates:
+                    return "\n".join(
+                        p.text for p in resp.candidates[0].content.parts if hasattr(p, "text")
+                    )
+                else:
+                    return str(resp)
 
             else:
                 print(f"Unrecognized model name: {model}")

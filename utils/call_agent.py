@@ -114,7 +114,7 @@ def ask_agent(model, history):
         try:
             if model.startswith('gemini'):
                 # Example: 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', etc.
-                client = genai.Client()  # reads GEMINI_API_KEY from env
+                genai.configure(api_key=os.getenv("GEMINI_API_KEY"))  # reads GEMINI_API_KEY from env
                 system_instruction = None
                 contents = []
                 for msg in history:
@@ -131,12 +131,12 @@ def ask_agent(model, history):
                     system_instruction=system_instruction if system_instruction else None,
                 )
 
-                resp = client.models.generate_content(
-                    model=model,          # pass through the requested Gemini model
-                    contents=contents,    # built from history
-                    config=cfg,
+                gemini_model = genai.GenerativeModel(model)
+                resp = gemini_model.generate_content(
+                    contents=contents,
+                    generation_config=cfg,
                 )
-                return resp.text
+                return resp.text if hasattr(resp, "text") else str(resp)
 
             else:
                 print(f"Unrecognized model name: {model}")

@@ -12,6 +12,7 @@ import google.generativeai as genai
 from google.generativeai import types
 from google.api_core import exceptions as google_exceptions
 import base64
+import os
 
 warnings.filterwarnings("ignore")
 

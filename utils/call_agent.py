@@ -8,9 +8,9 @@ import warnings
 import traceback
 
 # new
-from google import genai
-from google.genai import types
-from google.genai import errors as genai_errors
+import google.generativeai as genai
+from google.generativeai import types
+import google.api_core.exceptions as genai_errors
 import base64
 
 warnings.filterwarnings("ignore")

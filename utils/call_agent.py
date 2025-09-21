@@ -10,7 +10,9 @@ import traceback
 # new
 from google import genai
 from google.genai import types
-from google.genai import errors as genai_errors
+# from google.genai import errors as genai_errors
+
+from google.api_core import exceptions as google_exceptions
 import base64
 
 warnings.filterwarnings("ignore")
@@ -143,10 +145,10 @@ def ask_agent(model, history):
                 return None
 
         except (openai.error.RateLimitError, 
-                openai.error.ServiceUnavailableError, 
-                openai.error.APIError,
-                anthropic.RateLimitError,
-                genai_errors.APIError) as e:
+            openai.error.ServiceUnavailableError, 
+            openai.error.APIError,
+            anthropic.RateLimitError,
+            google_exceptions.GoogleAPIError) as e:
             count += 1
             print(f'API error: {str(e)}')
             # Optional: only retry for transient Gemini errors

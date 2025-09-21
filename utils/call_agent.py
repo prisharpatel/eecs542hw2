@@ -1,18 +1,17 @@
-import argparse
 import openai
 import anthropic
 from openai.error import RateLimitError, ServiceUnavailableError, APIError, InvalidRequestError
-import pandas as pd
 
-from tqdm import tqdm
-from IPython import embed
 import time
-from random import random, uniform
+from random import random
 import warnings
-import os
-import requests
-import ast
 import traceback
+
+# new
+from google import genai
+from google.genai import types
+from google.genai import errors as genai_errors
+import base64
 
 warnings.filterwarnings("ignore")
 
@@ -23,9 +22,9 @@ warnings.filterwarnings("ignore")
 # Load your API key manually:
 # openai.api_key = API_KEY
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-openai.organization = os.getenv("OPENAI_ORGANIZATION")
-anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# openai.api_key = os.getenv("OPENAI_API_KEY")
+# openai.organization = os.getenv("OPENAI_ORGANIZATION")
+# anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def get_content_from_message(message):
     """
@@ -64,62 +63,81 @@ def get_content_from_message(message):
                 parts.append(image_content)
     return parts
 
+def system_blocks_to_str(blocks):
+    # blocks: str OR [{"type":"text","text":...}, ...]
+    if isinstance(blocks, list):
+        return "\n".join(
+            b.get("text", "") if isinstance(b, dict) and b.get("type") in ("text", "input_text")
+            else str(b)
+            for b in blocks
+        )
+    return str(blocks)
+
+def blocks_to_parts_gemini(blocks):
+    # blocks: str OR list of {"type": "...", ...} as produced by get_content_from_message
+    if isinstance(blocks, str):
+        return [types.Part.from_text(text=blocks)]
+
+    parts = []
+    for b in blocks:
+        if isinstance(b, dict):
+            t = b.get("type")
+            if t in ("text", "input_text"):
+                parts.append(types.Part.from_text(text=b.get("text", "")))
+            elif t == "image":
+                # your function builds: {"type":"image","source":{"type":"base64","media_type":..., "data":...}}
+                src = b.get("source", {})
+                if src.get("type") == "base64":
+                    data_b64 = src.get("data", "")
+                    if data_b64:
+                        parts.append(
+                            types.Part.from_bytes(
+                                data=base64.b64decode(data_b64),
+                                mime_type=src.get("media_type", "image/jpeg"),
+                            )
+                        )
+            elif t == "image_url":
+                # If you ever leave these as URLs instead of converting to base64
+                url = (b.get("image_url") or {}).get("url") or b.get("url")
+                if url:
+                    parts.append(types.Part.from_uri(file_uri=url, mime_type=b.get("mime_type")))
+        elif isinstance(b, str):
+            parts.append(types.Part.from_text(text=b))
+        else:
+            parts.append(types.Part.from_text(text=str(b)))
+    return parts
+
 def ask_agent(model, history):
     max_retries = 5
     count = 0
-    system_cache = {}
     while count < max_retries:
         try:
-            # Handle Claude models
-            if model.startswith('claude'):
-                selected_model = 'claude-3-5-sonnet-latest'
-                system_content = None
-                messages = []
-
+            if model.startswith('gemini'):
+                # Example: 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', etc.
+                client = genai.Client()  # reads GEMINI_API_KEY from env
+                system_instruction = None
+                contents = []
                 for msg in history:
-                    content = get_content_from_message(msg)
+                    raw = get_content_from_message(msg)
                     if msg["role"] == "system":
-                        system_content = content
-                    else:
-                        role = "user" if msg["role"] == "user" else "assistant"
-                        messages.append({
-                            "role": role,
-                            "content": content
-                        })
-                
-                # Use cached system prompt if available
-                if selected_model in system_cache and system_cache[selected_model] == system_content:
-                    system_prompt = None  # System prompt is already cached in the API client
-                else:
-                    system_prompt = system_content
-                    system_cache[selected_model] = system_content  # Update cache
-                
-                # Prepare the API call parameters
-                api_params = {
-                    "model": selected_model,
-                    "messages": messages,
-                    "max_tokens": 4096
-                }
-                
-                # Include system prompt if it's not cached
-                if system_prompt:
-                    api_params["system"] = system_prompt
-                
-                response = anthropic_client.messages.create(**api_params)
-                
-                return response.content[0].text
-                
-            # Handle OpenAI models
-            elif model in ['gpt-4o-new', 'gpt-4-turbo', 'gpt-4o']:
-                if model == 'gpt-4o-new':
-                    model = 'gpt-4o-2024-11-20'
-                params = {
-                    "model": model,
-                    "messages": history,
-                    "max_tokens": 4096,
-                }
-                r = openai.ChatCompletion.create(**params)
-                return r['choices'][0]['message']['content']
+                        system_instruction = system_blocks_to_str(raw)
+                        continue
+                    # Gemini roles are "user" and "model"
+                    g_role = "user" if msg["role"] == "user" else "model"
+                    contents.append(types.Content(role=g_role, parts=blocks_to_parts_gemini(raw)))
+
+                cfg = types.GenerateContentConfig(
+                    max_output_tokens=4096,
+                    system_instruction=system_instruction if system_instruction else None,
+                )
+
+                resp = client.models.generate_content(
+                    model=model,          # pass through the requested Gemini model
+                    contents=contents,    # built from history
+                    config=cfg,
+                )
+                return resp.text
+
             else:
                 print(f"Unrecognized model name: {model}")
                 return None
@@ -127,19 +145,20 @@ def ask_agent(model, history):
         except (openai.error.RateLimitError, 
                 openai.error.ServiceUnavailableError, 
                 openai.error.APIError,
-                anthropic.RateLimitError) as e:
+                anthropic.RateLimitError,
+                genai_errors.APIError) as e:
             count += 1
             print(f'API error: {str(e)}')
-            wait_time = 60 + 10*random()  # Random wait between 60-70 seconds
+            # Optional: only retry for transient Gemini errors
+            # if isinstance(e, genai_errors.APIError) and e.code not in (429, 500, 502, 503, 504):
+            #     raise
+            wait_time = 60 + 10*random()
             print(f"Attempt {count}/{max_retries}. Waiting {wait_time:.1f} seconds...")
             time.sleep(wait_time)
 
-        except anthropic.BadRequestError:
-            raise
-                
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
             traceback.print_exc()
             return None
-            
-    return None  # If we exceed max_retries
+
+    return None

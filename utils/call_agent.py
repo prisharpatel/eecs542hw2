@@ -114,6 +114,7 @@ def ask_agent(model, history):
         try:
             if model.startswith('gemini'):
                 # Example: 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', etc.
+                model = "gemini-2.0-flash"
                 client = genai.Client()  # reads GEMINI_API_KEY from env
                 system_instruction = None
                 contents = []

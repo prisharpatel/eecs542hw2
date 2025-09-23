@@ -115,7 +115,7 @@ def ask_agent(model, history):
             if model.startswith('gemini'):
                 print("DEBUG model before rewrite:", model)
 
-                model = "gemini-2.0-flash"
+                model = "gemini-2.5-flash"
 
                 print("DEBUG model after rewrite:", model)
 

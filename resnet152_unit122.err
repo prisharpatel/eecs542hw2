@@ -1,4 +1,3 @@
-Traceback (most recent call last):
-  File "/gpfs/accounts/eecs542f25_class_root/eecs542f25_class/prisharp/eecs542hw2/main.py", line 7, in <module>
-    from dotenv import load_dotenv
-ModuleNotFoundError: No module named 'dotenv'
+`low_cpu_mem_usage` was None, now default to True since model is quantized.
+Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+Loading pipeline components...:  29%|██▊       | 2/7 [00:00<00:00,  6.07it/s]Loading pipeline components...:  71%|███████▏  | 5/7 [00:00<00:00, 12.08it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00,  7.40it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00,  7.83it/s]

@@ -111,6 +111,11 @@ class System:
             resnet152 = models.resnet152(weights='IMAGENET1K_V1').to(self.device)  
             model = resnet152.eval()
         elif model_name == 'dino_vits8':
+            import timm
+            model = timm.create_model("vit_small_patch8_224.dino", pretrained=True)
+            model.eval()
+            model.to(self.device)
+        elif model_name == 'dino_vits8':
             model = torch.hub.load('facebookresearch/dino:main', 'dino_vits8').to(self.device).eval()
         elif model_name == "clip-RN50": 
             name = 'RN50'

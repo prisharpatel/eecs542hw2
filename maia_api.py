@@ -117,7 +117,7 @@ class System:
             model.to(self.device)
         elif model_name == 'dino_vits8':
             model = torch.hub.load('facebookresearch/dino:main', 'dino_vits8').to(self.device).eval()
-        elif model_name.lower() in ["clip", "cliprn50", "rn50"]:
+        elif model_name.lower() in ["clip", "cliprn50", "rn50", "clip-rn50"]:
             print("DEBUG model_name in _load_model:", model_name) 
             name = 'RN50'
             full_model, preprocess = clip.load(name)

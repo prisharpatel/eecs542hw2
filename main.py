@@ -80,7 +80,7 @@ def interpretation_experiment(maia,system,tools,experiment_env,path2save,debug=F
         if debug: # print the dialogue to the screen
             print(maia_experiment)
         if round_count>25: # if the interpretation process exceeds 25 rounds, ask the agent to provide final description
-            overload_instructions()
+            overload_instructions(system, tools)
         if "[DESCRIPTION]" in maia_experiment: return # stop the experiment if the response contains the final description. "[DESCRIPTION]" is the stopping signal.  
         try:
             output = experiment_env.execute_experiment(maia_experiment) # if the response does not contain the final description, execute the experiment

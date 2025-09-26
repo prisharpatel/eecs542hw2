@@ -117,7 +117,8 @@ class System:
             model.to(self.device)
         elif model_name == 'dino_vits8':
             model = torch.hub.load('facebookresearch/dino:main', 'dino_vits8').to(self.device).eval()
-        elif model_name == "clip-RN50": 
+        elif model_name == "clip-RN50":
+            print("DEBUG model_name in _load_model:", model_name) 
             name = 'RN50'
             full_model, preprocess = clip.load(name)
             model = full_model.visual.to(self.device).eval()
@@ -127,6 +128,8 @@ class System:
             full_model, preprocess = clip.load(name)
             model = full_model.visual.to(self.device).eval()
             self.preprocess = preprocess
+        else:
+            raise ValueError(f"Unknown model name: {model_name}")
         return model
 
     def call_neuron(self, image_list: List[str])->Tuple[List[int], List[str]]:

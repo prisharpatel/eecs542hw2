@@ -344,7 +344,10 @@ class Synthetic_System:
         self.neuron_num = neuron_num
         self.neuron_labels = neuron_labels
         self.neuron = synthetic_neurons.SAMNeuron(neuron_labels, neuron_mode)
-        self.device = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")       
+        if device == "cpu":
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")       
         self.threshold = 0
         self.layer = neuron_mode
 
